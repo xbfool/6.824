@@ -4,7 +4,7 @@ import "fmt"
 import "log"
 import "net/rpc"
 import "hash/fnv"
-
+import "os"
 
 //
 // Map functions return a slice of KeyValue.
@@ -34,8 +34,8 @@ func Worker(mapf func(string, string) []KeyValue,
 	// Your worker implementation here.
 
 	// uncomment to send the Example RPC to the master.
-	// CallExample()
-
+	CallExample()
+	NewTask()
 }
 
 //
@@ -61,6 +61,13 @@ func CallExample() {
 	fmt.Printf("reply.Y %v\n", reply.Y)
 }
 
+func NewTask() {
+	args := NewTaskArgs{}
+	args.WorkerId = os.Getpid()
+	reply := NewTaskReply{}
+	call("Master.NewTask", &args, &reply)
+	fmt.Printf("reply.TaskId %v\n", reply.TaskId)
+}
 //
 // send an RPC request to the master, wait for the response.
 // usually returns true.

@@ -22,6 +22,14 @@ type ExampleReply struct {
 	Y int
 }
 
+type NewTaskArgs struct {
+	WorkerId int
+}
+
+type NewTaskReply struct {
+	TaskId string
+}
+
 // Add your RPC definitions here.
 
 

@@ -5,11 +5,18 @@ import "net"
 import "os"
 import "net/rpc"
 import "net/http"
+import "fmt"
 
+type Task struct {
+	Status int
+	FileName int
+	StartTime int
+	WorkerId int
+}
 
 type Master struct {
 	// Your definitions here.
-
+	Tasks [] Task
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -21,6 +28,12 @@ type Master struct {
 //
 func (m *Master) Example(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = args.X + 1
+	return nil
+}
+
+func (m *Master) NewTask(args *NewTaskArgs, reply *NewTaskReply) error {
+	fmt.Printf("GetTaskId %v\n", args.WorkerId)
+	reply.TaskId = "HellWorld"
 	return nil
 }
 
