@@ -49,8 +49,8 @@ func (m *Master) TaskDone(args *TaskDoneArgs, reply *TaskDoneReply) error {
 }
 
 func (m *Master) NewTask(args *NewTaskArgs, reply *NewTaskReply) error {
-	fmt.Printf("GetTaskId %v\n", args.WorkerId)
-	m.Print()
+	//fmt.Printf("GetTaskId %v\n", args.WorkerId)
+	//m.Print()
 	m.Done()
 	if !m.MapDone {
 		for i , val := range m.MapTasks {

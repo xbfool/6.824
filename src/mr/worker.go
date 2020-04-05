@@ -84,7 +84,7 @@ reducef func(string, []string) string) bool {
 	if !reply.NewTask {
 		return false
 	}
-	fmt.Printf("Do Task: type: %d number: %d\n",reply.TaskType, reply.TaskNumber)
+	//fmt.Printf("Do Task: type: %d number: %d\n",reply.TaskType, reply.TaskNumber)
 	if reply.TaskType == 0 {
 		intermediate := []KeyValue{}
 		filename := reply.FileName
@@ -109,7 +109,7 @@ reducef func(string, []string) string) bool {
 		}
 	
 		for i, ss := range s {
-			filename =  fmt.Sprintf("mr-out-%d-%d.json", reply.TaskNumber, i)
+			filename =  fmt.Sprintf("mr-%d-%d.json", reply.TaskNumber, i)
 			file, _ = os.Create(filename)
 			enc := json.NewEncoder(file)
 			for _, kv := range ss {
@@ -123,14 +123,15 @@ reducef func(string, []string) string) bool {
 		doneReply := TaskDoneReply{}
 		call("Master.TaskDone", &doneArgs, &doneReply)
 	}else if reply.TaskType == 1 {
+		kva := []KeyValue{}
 		for i := 0; i < reply.MapCount; i++ {
-			filename :=  fmt.Sprintf("mr-out-%d-%d.json", i, reply.TaskNumber)
+			filename :=  fmt.Sprintf("mr-%d-%d.json", i, reply.TaskNumber)
 			file, err := os.Open(filename)
 			if err != nil {
 				log.Fatalf("cannot open %v", filename)
 			}
 			dec := json.NewDecoder(file)
-			kva := []KeyValue{}
+			
 			for {
 				var kv KeyValue
 				if err := dec.Decode(&kv); err != nil {
