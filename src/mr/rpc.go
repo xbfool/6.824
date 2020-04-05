@@ -28,9 +28,19 @@ type NewTaskArgs struct {
 
 type NewTaskReply struct {
 	NewTask bool
+	TaskType int //0: map, 1: reduce
 	FileName string
 	TaskNumber int
 	ReduceCount int
+}
+
+type TaskDoneArgs struct {
+	TaskType int
+	TaskNumber int
+}
+
+type TaskDoneReply struct {
+	Err int
 }
 
 // Add your RPC definitions here.

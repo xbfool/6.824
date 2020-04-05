@@ -18,8 +18,11 @@ type Task struct {
 
 type Master struct {
 	// Your definitions here.
-	Tasks [] Task
+	MapTasks [] Task
+	ReduceTasks []Task
 	ReduceCount int
+	MapDone bool
+	ReduceDone bool
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -34,32 +37,73 @@ func (m *Master) Example(args *ExampleArgs, reply *ExampleReply) error {
 	return nil
 }
 
+func (m *Master) TaskDone(args *TaskDoneArgs, reply *TaskDoneReply) error {
+	if args.TaskType == 0 {
+		m.MapTasks[args.TaskNumber].Status = 2
+	}else {
+		m.ReduceTasks[args.TaskNumber].Status = 2
+	}
+	reply.Err = 0
+	return nil
+}
+
 func (m *Master) NewTask(args *NewTaskArgs, reply *NewTaskReply) error {
 	fmt.Printf("GetTaskId %v\n", args.WorkerId)
-	for i , val := range m.Tasks {
-		if val.Status == 0 || val.Status == 3 {
-			val.WorkerId = args.WorkerId
-			val.Status = 1
-			val.StartTime = time.Now()
-			val.TaskNumber = i
-			reply.FileName = val.FileName
-			reply.NewTask = true
-			reply.TaskNumber = i
-			reply.ReduceCount = m.ReduceCount
-			return nil
-		} else if val.Status == 1 {
-			if time.Now().Sub(val.StartTime)>= 10000000 {
+	if !m.MapDone {
+		for i , val := range m.MapTasks {
+			if val.Status == 0 || val.Status == 3 {
 				val.WorkerId = args.WorkerId
 				val.Status = 1
 				val.StartTime = time.Now()
+				val.TaskNumber = i
 				reply.FileName = val.FileName
 				reply.NewTask = true
 				reply.TaskNumber = i
 				reply.ReduceCount = m.ReduceCount
+				reply.TaskType = 0
 				return nil
+			} else if val.Status == 1 {
+				if time.Now().Sub(val.StartTime)>= 10000000 {
+					val.WorkerId = args.WorkerId
+					val.Status = 1
+					val.StartTime = time.Now()
+					reply.FileName = val.FileName
+					reply.NewTask = true
+					reply.TaskNumber = i
+					reply.ReduceCount = m.ReduceCount
+					reply.TaskType = 0
+					return nil
+				}
 			}
-		}
-	  }
+		  }
+		m.MapDone = true
+	}else if !m.ReduceDone {
+		for i , val := range m.ReduceTasks {
+			if val.Status == 0 || val.Status == 3 {
+				val.WorkerId = args.WorkerId
+				val.Status = 1
+				val.StartTime = time.Now()
+				val.TaskNumber = i
+				reply.TaskType = 1
+				reply.NewTask = true
+				reply.TaskNumber = i
+				reply.ReduceCount = m.ReduceCount
+				return nil
+			} else if val.Status == 1 {
+				if time.Now().Sub(val.StartTime)>= 10000000 {
+					val.WorkerId = args.WorkerId
+					val.Status = 1
+					val.StartTime = time.Now()
+					reply.TaskType = 1
+					reply.NewTask = true
+					reply.TaskNumber = i
+					reply.ReduceCount = m.ReduceCount
+					return nil
+				}
+			}
+		  }
+		  m.ReduceDone = true
+	}
 
 	reply.NewTask = false
 	return nil
@@ -87,11 +131,11 @@ func (m *Master) server() {
 // if the entire job has finished.
 //
 func (m *Master) Done() bool {
-	ret := false
+	ret := m.ReduceDone
 
 	// Your code here.
 
-
+	
 	return ret
 }
 
@@ -104,14 +148,26 @@ func MakeMaster(files []string, nReduce int) *Master {
 	m := Master{}
 	m.ReduceCount = nReduce
 	// Your code here.
-	var tasks [] Task
-	for _ , val := range files {
+	var mapTasks [] Task
+	for i , val := range files {
 		var task Task
 		task.Status = 0
 		task.FileName = val
-		tasks = append(tasks, task)
+		task.TaskNumber = i
+		mapTasks = append(mapTasks, task)
 	  }
-	m.Tasks = tasks
+	  var reduceTasks [] Task
+	for i := 0; i < nReduce; i++ {
+		var task Task
+		task.Status = 0
+		task.FileName = ""
+		task.TaskNumber = i
+		reduceTasks = append(reduceTasks, task)
+	}
+	m.MapTasks = mapTasks
+	m.ReduceTasks = reduceTasks
+	m.MapDone = false
+	m.ReduceDone = false
 	m.server()
 	return &m
 }

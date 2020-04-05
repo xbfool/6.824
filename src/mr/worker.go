@@ -14,7 +14,7 @@ type KeyValue struct {
 	Key   string
 	Value string
 }
-
+type ByKey []KeyValue
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -36,8 +36,10 @@ reducef func(string, []string) string) {
 
 	// uncomment to send the Example RPC to the master.
 	//CallExample()
-	
-	NewTask(mapf, reducef)
+	ret := NewTask(mapf, reducef)
+	for ret {
+		ret =  NewTask(mapf, reducef)
+	}
 }
 
 //
@@ -73,27 +75,45 @@ reducef func(string, []string) string) bool {
 		return false
 	}
 
-	intermediate := []KeyValue{}
-	filename := reply.FileName
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Fatalf("cannot open %v", filename)
-	}
-	content, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Fatalf("cannot read %v", filename)
-	}
-	file.Close()
-	kva := mapf(filename, string(content))
-	intermediate = append(intermediate, kva...)
+	if reply.TaskType == 0 {
+		intermediate := []KeyValue{}
+		filename := reply.FileName
+		file, err := os.Open(filename)
+		if err != nil {
+			log.Fatalf("cannot open %v", filename)
+		}
+		content, err := ioutil.ReadAll(file)
+		if err != nil {
+			log.Fatalf("cannot read %v", filename)
+		}
+		file.Close()
+		kva := mapf(filename, string(content))
+		intermediate = append(intermediate, kva...)
+	
+		s := make([]ByKey, reply.ReduceCount)
+	
+		for _, kv := range intermediate {
+			hashKey := ihash(kv.Key) % reply.ReduceCount
+			s[hashKey] = append(s[hashKey], kv)
+		}
+	
+		for i, ss := range s {
+			filename =  fmt.Sprintf("mr-out-%d-%d.json", reply.TaskNumber, i)
+			file, _ = os.Create(filename)
+			enc := json.NewEncoder(file)
+			for _, kv := range ss {
+				_ = enc.Encode(&kv)
+			}
+		}
 
-	filename = "out-tmp.json"
-	file, _ = os.Create(filename)
-	enc := json.NewEncoder(file)
-	for _, kv := range intermediate {
-		_ = enc.Encode(&kv)
+		doneArgs := TaskDoneArgs{}
+		doneArgs.TaskType = 0
+		doneArgs.TaskNumber = reply.TaskNumber
+		doneReply := TaskDoneReply{}
+		call("Master.TaskDone", &doneArgs, &doneReply)
+	}else if reply.TaskType == 1 {
+
 	}
-	fmt.Printf("reply.TaskId %v\n", reply.FileName)
 	return true
 }
 //
