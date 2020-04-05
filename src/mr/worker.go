@@ -7,6 +7,9 @@ import "hash/fnv"
 import "os"
 import "io/ioutil"
 import "encoding/json"
+import "sort"
+import "time"
+
 //
 // Map functions return a slice of KeyValue.
 //
@@ -15,6 +18,12 @@ type KeyValue struct {
 	Value string
 }
 type ByKey []KeyValue
+
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
+
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -38,6 +47,7 @@ reducef func(string, []string) string) {
 	//CallExample()
 	ret := NewTask(mapf, reducef)
 	for ret {
+
 		ret =  NewTask(mapf, reducef)
 	}
 }
@@ -74,10 +84,11 @@ reducef func(string, []string) string) bool {
 	if !reply.NewTask {
 		return false
 	}
-
+	fmt.Printf("Do Task: type: %d number: %d\n",reply.TaskType, reply.TaskNumber)
 	if reply.TaskType == 0 {
 		intermediate := []KeyValue{}
 		filename := reply.FileName
+		
 		file, err := os.Open(filename)
 		if err != nil {
 			log.Fatalf("cannot open %v", filename)
@@ -112,7 +123,51 @@ reducef func(string, []string) string) bool {
 		doneReply := TaskDoneReply{}
 		call("Master.TaskDone", &doneArgs, &doneReply)
 	}else if reply.TaskType == 1 {
+		for i := 0; i < reply.MapCount; i++ {
+			filename :=  fmt.Sprintf("mr-out-%d-%d.json", i, reply.TaskNumber)
+			file, err := os.Open(filename)
+			if err != nil {
+				log.Fatalf("cannot open %v", filename)
+			}
+			dec := json.NewDecoder(file)
+			kva := []KeyValue{}
+			for {
+				var kv KeyValue
+				if err := dec.Decode(&kv); err != nil {
+					break
+				}
+				kva = append(kva, kv)
+			}
+		    sort.Sort(ByKey(kva))
+			oname := fmt.Sprintf("mr-out-%d", reply.TaskNumber)
+			ofile, _ := os.Create(oname)
+			i := 0
+			for i < len(kva) {
+				j := i + 1
+				for j < len(kva) && kva[j].Key == kva[i].Key {
+					j++
+				}
+				values := []string{}
+				for k := i; k < j; k++ {
+					values = append(values, kva[k].Value)
+				}
+				output := reducef(kva[i].Key, values)
 
+				// this is the correct format for each line of Reduce output.
+				fmt.Fprintf(ofile, "%v %v\n", kva[i].Key, output)
+
+				i = j
+			}
+
+			ofile.Close()
+		}
+		doneArgs := TaskDoneArgs{}
+		doneArgs.TaskType = 1
+		doneArgs.TaskNumber = reply.TaskNumber
+		doneReply := TaskDoneReply{}
+		call("Master.TaskDone", &doneArgs, &doneReply)
+	}else{
+		time.Sleep(1000000)
 	}
 	return true
 }

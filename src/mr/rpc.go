@@ -28,10 +28,11 @@ type NewTaskArgs struct {
 
 type NewTaskReply struct {
 	NewTask bool
-	TaskType int //0: map, 1: reduce
+	TaskType int //0: map, 1: reduce, 2:wait
 	FileName string
 	TaskNumber int
 	ReduceCount int
+	MapCount int
 }
 
 type TaskDoneArgs struct {
