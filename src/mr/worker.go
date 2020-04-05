@@ -6,6 +6,7 @@ import "net/rpc"
 import "hash/fnv"
 import "os"
 import "io/ioutil"
+import "encoding/json"
 //
 // Map functions return a slice of KeyValue.
 //
@@ -86,7 +87,12 @@ reducef func(string, []string) string) bool {
 	kva := mapf(filename, string(content))
 	intermediate = append(intermediate, kva...)
 
-
+	filename = "out-tmp.json"
+	file, _ = os.Create(filename)
+	enc := json.NewEncoder(file)
+	for _, kv := range intermediate {
+		_ = enc.Encode(&kv)
+	}
 	fmt.Printf("reply.TaskId %v\n", reply.FileName)
 	return true
 }
