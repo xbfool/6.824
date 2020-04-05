@@ -6,17 +6,20 @@ import "os"
 import "net/rpc"
 import "net/http"
 import "fmt"
+import "time"
 
 type Task struct {
-	Status int
-	FileName int
-	StartTime int
+	Status int //0. not start, 1. started, 2.succeed, 3. failed
+	FileName string
+	StartTime time.Time
 	WorkerId int
+	TaskNumber int
 }
 
 type Master struct {
 	// Your definitions here.
 	Tasks [] Task
+	ReduceCount int
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -33,7 +36,32 @@ func (m *Master) Example(args *ExampleArgs, reply *ExampleReply) error {
 
 func (m *Master) NewTask(args *NewTaskArgs, reply *NewTaskReply) error {
 	fmt.Printf("GetTaskId %v\n", args.WorkerId)
-	reply.TaskId = "HellWorld"
+	for i , val := range m.Tasks {
+		if val.Status == 0 || val.Status == 3 {
+			val.WorkerId = args.WorkerId
+			val.Status = 1
+			val.StartTime = time.Now()
+			val.TaskNumber = i
+			reply.FileName = val.FileName
+			reply.NewTask = true
+			reply.TaskNumber = i
+			reply.ReduceCount = m.ReduceCount
+			return nil
+		} else if val.Status == 1 {
+			if time.Now().Sub(val.StartTime)>= 10000000 {
+				val.WorkerId = args.WorkerId
+				val.Status = 1
+				val.StartTime = time.Now()
+				reply.FileName = val.FileName
+				reply.NewTask = true
+				reply.TaskNumber = i
+				reply.ReduceCount = m.ReduceCount
+				return nil
+			}
+		}
+	  }
+
+	reply.NewTask = false
 	return nil
 }
 
@@ -74,10 +102,16 @@ func (m *Master) Done() bool {
 //
 func MakeMaster(files []string, nReduce int) *Master {
 	m := Master{}
-
+	m.ReduceCount = nReduce
 	// Your code here.
-
-
+	var tasks [] Task
+	for _ , val := range files {
+		var task Task
+		task.Status = 0
+		task.FileName = val
+		tasks = append(tasks, task)
+	  }
+	m.Tasks = tasks
 	m.server()
 	return &m
 }

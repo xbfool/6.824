@@ -5,7 +5,7 @@ import "log"
 import "net/rpc"
 import "hash/fnv"
 import "os"
-
+import "io/ioutil"
 //
 // Map functions return a slice of KeyValue.
 //
@@ -29,13 +29,14 @@ func ihash(key string) int {
 // main/mrworker.go calls this function.
 //
 func Worker(mapf func(string, string) []KeyValue,
-	reducef func(string, []string) string) {
+reducef func(string, []string) string) {
 
 	// Your worker implementation here.
 
 	// uncomment to send the Example RPC to the master.
-	CallExample()
-	NewTask()
+	//CallExample()
+	
+	NewTask(mapf, reducef)
 }
 
 //
@@ -61,12 +62,33 @@ func CallExample() {
 	fmt.Printf("reply.Y %v\n", reply.Y)
 }
 
-func NewTask() {
+func NewTask(mapf func(string, string) []KeyValue,
+reducef func(string, []string) string) bool {
 	args := NewTaskArgs{}
 	args.WorkerId = os.Getpid()
 	reply := NewTaskReply{}
 	call("Master.NewTask", &args, &reply)
-	fmt.Printf("reply.TaskId %v\n", reply.TaskId)
+	if !reply.NewTask {
+		return false
+	}
+
+	intermediate := []KeyValue{}
+	filename := reply.FileName
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatalf("cannot open %v", filename)
+	}
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("cannot read %v", filename)
+	}
+	file.Close()
+	kva := mapf(filename, string(content))
+	intermediate = append(intermediate, kva...)
+
+
+	fmt.Printf("reply.TaskId %v\n", reply.FileName)
+	return true
 }
 //
 // send an RPC request to the master, wait for the response.

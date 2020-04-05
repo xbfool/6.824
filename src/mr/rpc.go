@@ -27,7 +27,10 @@ type NewTaskArgs struct {
 }
 
 type NewTaskReply struct {
-	TaskId string
+	NewTask bool
+	FileName string
+	TaskNumber int
+	ReduceCount int
 }
 
 // Add your RPC definitions here.
